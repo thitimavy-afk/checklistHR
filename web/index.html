@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; background-color: #eff6ff; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <!-- 🍞 Toast Notification Container -->
+    <div aria-live="polite" aria-atomic="true" class="fixed bottom-5 right-5 z-50">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform translate-y-20 opacity-0 flex items-center space-x-3" role="alert" aria-live="assertive" aria-atomic="true">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-lg"></i>
+            <span id="toastMessage" class="text-sm font-medium">บันทึกข้อมูลสำเร็จ!</span>
+        </div>
+    </div>
+
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-md">
+                    <i class="fa-solid fa-id-card-clip text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Checklist</h1>
+                    <p class="text-xs text-slate-500">ระบบติดตามสถานะ เอกสาร และความคืบหน้าพนักงาน (ระบบออนไลน์)</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <button type="button" onclick="loadDataFromSheets()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-rotate text-blue-600"></i>
+                    <span>รีเฟรชข้อมูล</span>
+                </button>
+                <button type="button" onclick="exportCSV()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                    <span>ส่งออก CSV</span>
+                </button>
+                <button type="button" onclick="openAddEmployeeModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>เพิ่มพนักงานใหม่</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div class="flex border-b border-slate-200 overflow-x-auto bg-white rounded-t-2xl px-4 pt-2 shadow-sm gap-2">
+            <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="py-3 px-4 sm:px-6 text-sm font-medium transition tab-active whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-chart-pie"></i><span>ภาพรวมแดชบอร์ด</span>
+            </button>
+            <button type="button" onclick="switchTab('pre-boarding')" id="nav-pre-boarding" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-clipboard-list"></i><span>Pre-boarding</span>
+            </button>
+            <button type="button" onclick="switchTab('on-boarding')" id="nav-on-boarding" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-user-check"></i><span>On-boarding</span>
+            </button>
+            <button type="button" onclick="switchTab('off-boarding')" id="nav-off-boarding" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-user-minus"></i><span>Off-boarding</span>
+            </button>
+            <button type="button" onclick="switchTab('declined')" id="nav-declined" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-user-xmark"></i><span>สละสิทธิ์</span>
+            </button>
+            <button type="button" onclick="switchTab('directory')" id="nav-directory" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-users"></i><span>รายชื่อพนักงาน</span>
+            </button>
+            <button type="button" onclick="switchTab('statistics')" id="nav-statistics" class="py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl">
+                <i class="fa-solid fa-chart-column"></i><span>รายงานสถิติ</span>
+            </button>
+        </div>
+
+        <div id="tab-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+                    <div class="bg-blue-50 text-blue-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-users"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">พนักงานทั้งหมด</p>
+                        <h3 id="stat-total" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+                    <div class="bg-amber-50 text-amber-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-clipboard-list"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Pre-boarding</p>
+                        <h3 id="stat-pre" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+                    <div class="bg-emerald-50 text-emerald-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-user-check"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">On-boarding</p>
+                        <h3 id="stat-on" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+                    <div class="bg-rose-50 text-rose-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-user-minus"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Off-boarding</p>
+                        <h3 id="stat-off" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+                    <div class="bg-orange-50 text-orange-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-user-xmark"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">สละสิทธิ์</p>
+                        <h3 id="stat-declined" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fa-solid fa-clock-rotate-left mr-2 text-blue-600"></i>พนักงานล่าสุดและความคืบหน้า</h3>
+                <div id="recent-employees-list" class="divide-y divide-slate-100"></div>
+            </div>
+        </div>
+
+        <div id="tab-pre-boarding" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-clipboard-list mr-2 text-amber-600"></i>Pre-boarding Checklist</h3>
+                        <p class="text-xs text-slate-500">รายการเตรียมความพร้อมสำหรับผู้ร่วมงานใหม่</p>
+                    </div>
+                    <input type="text" id="search-pre" oninput="renderChecklists()" placeholder="ค้นหาชื่อ, รหัส, แผนก..." class="px-3 py-2 border rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
+                                <th class="p-3">พนักงาน</th>
+                                <th class="p-3">แผนก / ตำแหน่ง</th>
+                                <th class="p-3">สถานะปัจจุบัน</th>
+                                <th class="p-3">ความคืบหน้าเช็คลิสต์</th>
+                                <th class="p-3 text-center">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-pre-boarding" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-on-boarding" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-user-check mr-2 text-emerald-600"></i>On-boarding Checklist</h3>
+                        <p class="text-xs text-slate-500">รายการตรวจสอบอุปกรณ์และเอกสาร</p>
+                    </div>
+                    <input type="text" id="search-on" oninput="renderChecklists()" placeholder="ค้นหาชื่อ, รหัส, แผนก..." class="px-3 py-2 border rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
+                                <th class="p-3">พนักงาน</th>
+                                <th class="p-3">แผนก / ตำแหน่ง</th>
+                                <th class="p-3">สถานะปัจจุบัน</th>
+                                <th class="p-3">ความคืบหน้าเช็คลิสต์</th>
+                                <th class="p-3 text-center">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-on-boarding" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-off-boarding" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-user-minus mr-2 text-rose-600"></i>Off-boarding Checklist</h3>
+                        <p class="text-xs text-slate-500">รายการตรวจรับคืนอุปกรณ์</p>
+                    </div>
+                    <input type="text" id="search-off" oninput="renderChecklists()" placeholder="ค้นหาชื่อ, รหัส, แผนก..." class="px-3 py-2 border rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-rose-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
+                                <th class="p-3">พนักงาน</th>
+                                <th class="p-3">แผนก / ตำแหน่ง</th>
+                                <th class="p-3">สถานะปัจจุบัน</th>
+                                <th class="p-3">ความคืบหน้าเช็คลิสต์</th>
+                                <th class="p-3 text-center">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-off-boarding" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-declined" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-user-xmark mr-2 text-orange-600"></i>ไม่ได้มาทำต่อ / สละสิทธิ์</h3>
+                        <p class="text-xs text-slate-500">รายชื่อผู้สมัครที่สละสิทธิ์หรือไม่มาเริ่มงาน</p>
+                    </div>
+                    <input type="text" id="search-declined" oninput="renderChecklists()" placeholder="ค้นหาชื่อ, รหัส, แผนก..." class="px-3 py-2 border rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
+                                <th class="p-3">พนักงาน</th>
+                                <th class="p-3">แผนก / ตำแหน่ง</th>
+                                <th class="p-3">สถานะปัจจุบัน</th>
+                                <th class="p-3">ความคืบหน้าเช็คลิสต์</th>
+                                <th class="p-3 text-center">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-declined" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-directory" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-users mr-2 text-blue-600"></i>พนักงานทั้งหมด (Directory)</h3>
+                        <p class="text-xs text-slate-500">จัดการข้อมูลส่วนตัวและสถานะพนักงาน</p>
+                    </div>
+                    <input type="text" id="search-directory" oninput="renderDirectory()" placeholder="ค้นหาพนักงาน..." class="px-3 py-2 border rounded-xl text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
+                                <th class="p-3">รหัส / วันที่เริ่มงาน</th>
+                                <th class="p-3">ชื่อ - นามสกุล</th>
+                                <th class="p-3">แผนก / ตำแหน่ง</th>
+                                <th class="p-3">วันที่ออก</th>
+                                <th class="p-3">สถานะ</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directory-table-body" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-statistics" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-chart-column mr-2 text-blue-600"></i>รายงานและสถิติภาพรวม</h3>
+                    <p class="text-xs text-slate-500">สรุปข้อมูลสถิติต่างๆ ในองค์กร</p>
+                </div>
+                <div id="stats-summary-container" class="grid grid-cols-1 sm:grid-cols-5 gap-4"></div>
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3">สรุปข้อมูลแยกตามแผนก</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 border-b text-xs text-slate-500 uppercase">
+                                    <th class="p-3">ชื่อแผนก</th>
+                                    <th class="p-3 text-center">พนักงานทั้งหมด</th>
+                                    <th class="p-3 text-center text-amber-600">Pre-boarding</th>
+                                    <th class="p-3 text-center text-emerald-600">On-boarding</th>
+                                    <th class="p-3 text-center text-rose-600">Off-boarding</th>
+                                    <th class="p-3 text-center text-orange-600">สละสิทธิ์</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dept-stats-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="checklistModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div>
+                    <h3 id="modalChecklistTitle" class="text-lg font-bold text-slate-800"><i class="fa-solid fa-clipboard-check mr-2 text-blue-600"></i>ตรวจสอบเช็คลิสต์</h3>
+                    <p id="modalChecklistSub" class="text-xs text-slate-500"></p>
+                </div>
+                <button type="button" onclick="closeChecklistModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modalChecklistBody" class="space-y-3"></div>
+            <div class="flex items-center space-x-2 pt-3 border-t">
+                <input type="text" id="modalCustomInput" placeholder="เพิ่มข้อเช็คลิสต์หรือเอกสารเฉพาะกิจ..." class="flex-grow px-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="button" onclick="addModalCustomItem()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-medium"><i class="fa-solid fa-plus mr-1"></i>เพิ่มข้อ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const jsonUrl = 'employees_data.json';
+
+        let employees = [];
+
+        const defaultPreItems = [
+            "ใบคำร้องขออยู่หอพัก (ถ้ามี)",
+            "ใบขอใช้ทรัพย์สินส่วนตัวเพื่อการปฏิบัติงาน / บัตรน้ำมัน Feed Card (ถ้ามี)",
+            "ใบแจ้งขอเบิกเสื้อฟอร์ม+หมวก",
+            "ใบคำขอขึ้นรถตู้ (ถ้ามี)",
+            "ใบขอใช้รถยนต์ส่วนกลางของบริษัทฯ / บัตรน้ำมัน (Feed Card) (ถ้ามี)",
+            "เตรียมความพร้อม โต๊ะ+เก้าอี้ (ตามมาตรฐานกำหนด)",
+            "เตรียมความพร้อม ลิ้นชัก+กุญแจ",
+            "อุปกรณ์เครื่องเขียน จำนวน 1 ชุด",
+            "สมุดบันทึก (สำหรับตำแหน่งงาน L 6 ขึ้นไป) จำนวน 1 เล่ม"
+        ];
+
+        const defaultOnItems = [
+            "กุญแจห้องพัก", "สัญญาเช่ารถยนต์", "บัตรน้ำมัน (Feed Card)", "เสื้อฟอร์ม (ตามระเบียบบริษัท)",
+            "หมวก", "รถยนต์/กุญแจรถยนต์ Easy", "โต๊ะ / เก้าอี้ (ตามมาตรฐาน)", "ลิ้นชักโมเดล / กุญแจ",
+            "อุปกรณ์เครื่องเขียน", "สมุดบันทึก", "สติกเกอร์รถยนต์/รถจักรยานยนต์/จักรยาน"
+        ];
+
+        const defaultOffItems = [
+            "รับคืนกุญแจห้องพัก", "รับคืนบัตรน้ำมัน (Feed Card)", "รับคืนเสื้อฟอร์ม", "รับคืนหมวก",
+            "รับคืนรถยนต์/กุญแจรถยนต์ Easy", "รับคืนโต๊ะ / เก้าอี้", "รับคืนลิ้นชักโมเดล / กุญแจ", "รับคืนสติกเกอร์รถยนต์/รถจักรยานยนต์/จักรยาน"
+        ];
+
+        const defaultDeclinedItems = [
+            "บันทึกเหตุผลการสละสิทธิ์ / ไม่มาเริ่มงาน",
+            "แจ้งแผนกสรรหาบุคลากร (Recruit) ทราบ",
+            "ยกเลิกการจัดเตรียมโต๊ะและอุปกรณ์"
+        ];
+
+        let currentChecklistEmpId = null;
+        let currentChecklistStatus = null;
+
+        function showToast(message, type = 'success') {
+            let toast = document.getElementById('liveToast');
+            let toastMsg = document.getElementById('toastMessage');
+            let toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+            
+            if (type === 'success') {
+                toast.className = "fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform flex items-center space-x-3";
+                toastIcon.className = "fa-solid fa-circle-check text-lg";
+            } else if (type === 'warning') {
+                toast.className = "fixed bottom-5 right-5 z-50 bg-amber-500 text-white px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform flex items-center space-x-3";
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-lg";
+            } else if (type === 'error') {
+                toast.className = "fixed bottom-5 right-5 z-50 bg-rose-600 text-white px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform flex items-center space-x-3";
+                toastIcon.className = "fa-solid fa-circle-xmark text-lg";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            return String(dateString).split('T')[0];
+        }
+
+        function loadDataFromSheets() {
+            fetch(jsonUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('ไม่สามารถโหลดไฟล์ JSON ได้');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        employees = data.map(e => ({
+                            id: String(e['รหัสพนักงาน'] || "").trim(),
+                            date: e['วันเริ่มงาน'] ? String(e['วันเริ่มงาน']).split('T')[0] : "",
+                            endDate: e['วันที่ออก'] ? String(e['วันที่ออก']).split('T')[0] : "",
+                            name: e['ชื่อ-สกุล'] || "",
+                            dept: e['แผนก'] || "-",
+                            pos: e['ตำแหน่ง'] || "",
+                            status: e['สถานะ'] || "Pre-boarding",
+                            checklists: e.checklists || {},
+                            customItems: e.customItems || { 'Pre-boarding': [], 'On-boarding': [], 'Off-boarding': [], 'Declined': [] },
+                            deletedItems: e.deletedItems || { 'Pre-boarding': [], 'On-boarding': [], 'Off-boarding': [], 'Declined': [] },
+                            images: e.images || {}
+                        }));
+                        showToast("โหลดข้อมูลสำเร็จ", "success");
+                    }
+                    renderAll();
+                })
+                .catch(err => {
+                    console.error("เกิดข้อผิดพลาดในการโหลดข้อมูล JSON:", err);
+                    showToast("ไม่สามารถโหลดข้อมูลได้", "error");
+                    renderAll();
+                });
+        }
+
+        function saveData() {
+            renderAll();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadDataFromSheets();
+        });
+
+        function switchTab(tabId) {
+            ['dashboard', 'pre-boarding', 'on-boarding', 'off-boarding', 'declined', 'directory', 'statistics'].forEach(t => {
+                let el = document.getElementById(`tab-${t}`);
+                let nav = document.getElementById(`nav-${t}`);
+                if (el) el.classList.add('hidden');
+                if (nav) nav.className = "py-3 px-4 sm:px-6 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap flex items-center space-x-2 rounded-t-xl";
+            });
+            let targetTab = document.getElementById(`tab-${tabId}`);
+            let targetNav = document.getElementById(`nav-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+            if (targetNav) targetNav.className = "py-3 px-4 sm:px-6 text-sm font-medium transition tab-active whitespace-nowrap flex items-center space-x-2 rounded-t-xl";
+            renderAll();
+        }
+
+        function getItemsForStatus(status) {
+            if (status === 'Pre-boarding') return defaultPreItems;
+            if (status === 'On-boarding') return defaultOnItems;
+            if (status === 'Off-boarding') return defaultOffItems;
+            if (status === 'Declined') return defaultDeclinedItems;
+            return [];
+        }
+
+        function getStatusBadgeStyle(status) {
+            if (status === 'Pre-boarding') return 'bg-amber-50 text-amber-700';
+            if (status === 'On-boarding') return 'bg-emerald-50 text-emerald-700';
+            if (status === 'Off-boarding') return 'bg-rose-50 text-rose-700';
+            if (status === 'Declined') return 'bg-orange-50 text-orange-700';
+            return 'bg-slate-50 text-slate-700';
+        }
+
+        function getStatusLabel(status) {
+            if (status === 'Pre-boarding') return 'Pre-boarding';
+            if (status === 'On-boarding') return 'On-boarding';
+            if (status === 'Off-boarding') return 'Off-boarding';
+            if (status === 'Declined') return 'สละสิทธิ์';
+            return status;
+        }
+
+        function calculateProgress(emp) {
+            let base = getItemsForStatus(emp.status);
+            let custom = (emp.customItems && emp.customItems[emp.status]) ? emp.customItems[emp.status] : [];
+            let totalBase = base.length;
+            
+            if (!emp.deletedItems) emp.deletedItems = { 'Pre-boarding': [], 'On-boarding': [], 'Off-boarding': [], 'Declined': [] };
+            let deletedBaseCount = (emp.deletedItems[emp.status] || []).filter(idx => idx < totalBase).length;
+            
+            let totalItems = (totalBase - deletedBaseCount) + custom.length;
+            if (totalItems <= 0) return { completed: 0, total: 0, percent: 0 };
+
+            if (!emp.checklists) emp.checklists = {};
+            if (!emp.checklists[emp.status]) emp.checklists[emp.status] = {};
+
+            let completed = 0;
+            for (let i = 0; i < totalBase; i++) {
+                if (!(emp.deletedItems[emp.status] || []).includes(i)) {
+                    if (emp.checklists[emp.status][i]) completed++;
+                }
+            }
+            for (let i = 0; i < custom.length; i++) {
+                if (emp.checklists[emp.status][totalBase + i]) completed++;
+            }
+
+            return { completed, total: totalItems, percent: Math.round((completed / totalItems) * 100) };
+        }
+
+        function renderAll() {
+            let total = employees.length;
+            let pre = employees.filter(e => e.status === 'Pre-boarding').length;
+            let on = employees.filter(e => e.status === 'On-boarding').length;
+            let off = employees.filter(e => e.status === 'Off-boarding').length;
+            let declined = employees.filter(e => e.status === 'Declined').length;
+
+            if (document.getElementById('stat-total')) document.getElementById('stat-total').innerText = total;
+            if (document.getElementById('stat-pre')) document.getElementById('stat-pre').innerText = pre;
+            if (document.getElementById('stat-on')) document.getElementById('stat-on').innerText = on;
+            if (document.getElementById('stat-off')) document.getElementById('stat-off').innerText = off;
+            if (document.getElementById('stat-declined')) document.getElementById('stat-declined').innerText = declined;
+
+            let recentHtml = employees.slice(-5).reverse().map(e => {
+                let prog = calculateProgress(e);
+                return `
+                    <div class="py-3 flex justify-between items-center gap-4">
+                        <div>
+                            <p class="font-medium text-slate-800">${e.name} <span class="text-xs text-slate-400">(${e.id})</span></p>
+                            <p class="text-xs text-slate-500">${e.dept} - ${e.pos} ${e.date ? '| เริ่ม: ' + formatDate(e.date) : ''} ${e.endDate ? '| ออก: ' + formatDate(e.endDate) : ''}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-blue-600">${prog.completed}/${prog.total} (${prog.percent}%)</span>
+                                <div class="w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${prog.percent}%"></div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeStyle(e.status)}">${getStatusLabel(e.status)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            if (document.getElementById('recent-employees-list')) {
+                document.getElementById('recent-employees-list').innerHTML = recentHtml || '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีข้อมูลพนักงาน</p>';
+            }
+
+            renderChecklists();
+            renderDirectory();
+            renderStatistics();
+        }
+
+        function renderChecklists() {
+            renderChecklistTable('table-pre-boarding', 'Pre-boarding', document.getElementById('search-pre') ? document.getElementById('search-pre').value : '');
+            renderChecklistTable('table-on-boarding', 'On-boarding', document.getElementById('search-on') ? document.getElementById('search-on').value : '');
+            renderChecklistTable('table-off-boarding', 'Off-boarding', document.getElementById('search-off') ? document.getElementById('search-off').value : '');
+            renderChecklistTable('table-declined', 'Declined', document.getElementById('search-declined') ? document.getElementById('search-declined').value : '');
+        }
+
+        function renderChecklistTable(tableId, targetStatus, searchKey = '') {
+            let tbody = document.getElementById(tableId);
+            if (!tbody) return;
+
+            let filtered = employees.filter(e => e.status === targetStatus && (
+                e.name.toLowerCase().includes(searchKey.toLowerCase()) ||
+                e.id.toLowerCase().includes(searchKey.toLowerCase()) ||
+                e.dept.toLowerCase().includes(searchKey.toLowerCase())
+            ));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">ไม่พบข้อมูลในสถานะนี้</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(e => {
+                let prog = calculateProgress(e);
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3">
+                            <div class="font-bold text-slate-800">${e.name}</div>
+                            <div class="text-xs text-slate-500">รหัส: ${e.id} ${e.date ? '| เริ่ม: ' + formatDate(e.date) : ''}</div>
+                        </td>
+                        <td class="p-3 text-xs">
+                            <div class="font-medium text-slate-700">${e.dept}</div>
+                            <div class="text-slate-400">${e.pos}</div>
+                        </td>
+                        <td class="p-3">
+                            <span class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 ${getStatusBadgeStyle(e.status)}">${getStatusLabel(e.status)}</span>
+                        </td>
+                        <td class="p-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs font-bold text-blue-600">${prog.completed}/${prog.total} (${prog.percent}%)</span>
+                                <div class="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${prog.percent}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="openChecklistModal('${e.id}', '${targetStatus}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs flex items-center justify-center space-x-1 mx-auto">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                                <span>ตรวจสอบเช็คลิสต์</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openChecklistModal(empId, statusKey) {
+            currentChecklistEmpId = empId;
+            currentChecklistStatus = statusKey;
+            let emp = employees.find(e => e.id === empId);
+            if (!emp) return;
+
+            document.getElementById('modalChecklistTitle').innerHTML = `<i class="fa-solid fa-clipboard-check mr-2 text-blue-600"></i>ตรวจสอบเช็คลิสต์: ${emp.name}`;
+            document.getElementById('modalChecklistSub').innerText = `รหัส: ${emp.id} | เริ่มงาน: ${formatDate(emp.date) || '-'} | แผนก: ${emp.dept} (${getStatusLabel(statusKey)})`;
+
+            renderModalChecklistItems();
+            document.getElementById('checklistModal').classList.remove('hidden');
+        }
+
+        function closeChecklistModal() {
+            document.getElementById('checklistModal').classList.add('hidden');
+            renderAll();
+        }
+
+        function renderModalChecklistItems() {
+            let emp = employees.find(e => e.id === currentChecklistEmpId);
+            if (!emp) return;
+
+            let baseItems = getItemsForStatus(currentChecklistStatus);
+            if (!emp.customItems) emp.customItems = { 'Pre-boarding': [], 'On-boarding': [], 'Off-boarding': [], 'Declined': [] };
+            if (!emp.customItems[currentChecklistStatus]) emp.customItems[currentChecklistStatus] = [];
+            if (!emp.deletedItems) emp.deletedItems = { 'Pre-boarding': [], 'On-boarding': [], 'Off-boarding': [], 'Declined': [] };
+            if (!emp.deletedItems[currentChecklistStatus]) emp.deletedItems[currentChecklistStatus] = [];
+            if (!emp.itemOverrides) emp.itemOverrides = {};
+            if (!emp.itemOverrides[currentChecklistStatus]) emp.itemOverrides[currentChecklistStatus] = {};
+            if (!emp.checklists) emp.checklists = {};
+            if (!emp.checklists[currentChecklistStatus]) emp.checklists[currentChecklistStatus] = {};
+
+            let allItems = [...baseItems, ...emp.customItems[currentChecklistStatus]];
+
+            let html = allItems.map((item, idx) => {
+                if (idx < baseItems.length && emp.deletedItems[currentChecklistStatus].includes(idx)) {
+                    return '';
+                }
+
+                let displayName = (emp.itemOverrides[currentChecklistStatus][idx] !== undefined) ? emp.itemOverrides[currentChecklistStatus][idx] : item;
+                let isChecked = emp.checklists[currentChecklistStatus][idx] ? 'checked' : '';
+                
+                return `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2">
+                        <label class="flex items-start space-x-2 text-xs text-slate-700 cursor-pointer flex-grow items-center">
+                            <input type="checkbox" ${isChecked} onchange="toggleModalChecklist('${emp.id}', '${currentChecklistStatus}', ${idx}, this.checked)" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <span class="font-medium">${displayName}</span>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('modalChecklistBody').innerHTML = html || '<p class="text-xs text-slate-400 text-center py-4">ไม่มีรายการเช็คลิสต์</p>';
+        }
+
+        function toggleModalChecklist(empId, statusKey, idx, isChecked) {
+            let emp = employees.find(e => e.id === empId);
+            if (emp) {
+                if (!emp.checklists) emp.checklists = {};
+                if (!emp.checklists[statusKey]) emp.checklists[statusKey] = {};
+                emp.checklists[statusKey][idx] = isChecked;
+                renderModalChecklistItems();
+            }
+        }
+
+        function renderDirectory() {
+            let searchEl = document.getElementById('search-directory');
+            let searchKey = searchEl ? searchEl.value.toLowerCase() : '';
+            let tbody = document.getElementById('directory-table-body');
+            if (!tbody) return;
+
+            let filtered = employees.filter(e => 
+                e.name.toLowerCase().includes(searchKey) ||
+                e.id.toLowerCase().includes(searchKey) ||
+                e.dept.toLowerCase().includes(searchKey) ||
+                e.pos.toLowerCase().includes(searchKey)
+            );
+
+            tbody.innerHTML = filtered.map((e) => {
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3">
+                            <div class="font-medium">${e.id}</div>
+                            <div class="text-xs text-slate-400">เริ่ม: ${formatDate(e.date) || '-'}</div>
+                        </td>
+                        <td class="p-3 font-semibold text-slate-800">${e.name}</td>
+                        <td class="p-3 text-xs text-slate-600">
+                            <div class="font-medium">${e.dept}</div>
+                            <div class="text-slate-400">${e.pos}</div>
+                        </td>
+                        <td class="p-3 text-xs text-slate-600">
+                            <div>${e.endDate ? '<span class="text-rose-600 font-medium">ออก: ' + formatDate(e.endDate) + '</span>' : '<span class="text-slate-400">-</span>'}</div>
+                        </td>
+                        <td class="p-3">
+                            <span class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 ${getStatusBadgeStyle(e.status)}">${getStatusLabel(e.status)}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="openChecklistModal('${e.id}', '${e.status}')" class="text-blue-600 hover:text-blue-800 text-xs px-2.5 py-1 bg-blue-50 rounded-lg"><i class="fa-solid fa-clipboard-check"></i> เช็คลิสต์</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="6" class="text-center py-4 text-slate-400">ไม่พบรายชื่อพนักงาน</td></tr>';
+        }
+
+        function renderStatistics() {
+            let total = employees.length;
+            let pre = employees.filter(e => e.status === 'Pre-boarding').length;
+            let on = employees.filter(e => e.status === 'On-boarding').length;
+            let off = employees.filter(e => e.status === 'Off-boarding').length;
+            let declined = employees.filter(e => e.status === 'Declined').length;
+
+            let sumContainer = document.getElementById('stats-summary-container');
+            if (sumContainer) {
+                sumContainer.innerHTML = `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><p class="text-xs text-slate-500">พนักงานทั้งหมด</p><h4 class="text-xl font-bold text-slate-800">${total}</h4></div>
+                    <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-100"><p class="text-xs text-amber-600">Pre-boarding</p><h4 class="text-xl font-bold text-amber-700">${pre}</h4></div>
+                    <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100"><p class="text-xs text-emerald-600">On-boarding</p><h4 class="text-xl font-bold text-emerald-700">${on}</h4></div>
+                    <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-100"><p class="text-xs text-rose-600">Off-boarding</p><h4 class="text-xl font-bold text-rose-700">${off}</h4></div>
+                    <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100"><p class="text-xs text-orange-600">สละสิทธิ์</p><h4 class="text-xl font-bold text-orange-700">${declined}</h4></div>
+                `;
+            }
+
+            let deptMap = {};
+            employees.forEach(e => {
+                let d = e.dept || 'ไม่ระบุแผนก';
+                if (!deptMap[d]) deptMap[d] = { total: 0, pre: 0, on: 0, off: 0, declined: 0 };
+                deptMap[d].total++;
+                if (e.status === 'Pre-boarding') deptMap[d].pre++;
+                if (e.status === 'On-boarding') deptMap[d].on++;
+                if (e.status === 'Off-boarding') deptMap[d].off++;
+                if (e.status === 'Declined') deptMap[d].declined++;
+            });
+
+            let deptBody = document.getElementById('dept-stats-body');
+            if (deptBody) {
+                deptBody.innerHTML = Object.keys(deptMap).map(d => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-medium text-slate-800">${d}</td>
+                        <td class="p-3 text-center font-bold">${deptMap[d].total}</td>
+                        <td class="p-3 text-center text-amber-600 font-semibold">${deptMap[d].pre}</td>
+                        <td class="p-3 text-center text-emerald-600 font-semibold">${deptMap[d].on}</td>
+                        <td class="p-3 text-center text-rose-600 font-semibold">${deptMap[d].off}</td>
+                        <td class="p-3 text-center text-orange-600 font-semibold">${deptMap[d].declined}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="6" class="text-center py-4 text-slate-400">ไม่มีข้อมูลแผนก</td></tr>';
+            }
+        }
+
+        function exportCSV() {
+            let csvContent = "\uFEFFID,StartDate,EndDate,Name,Department,Position,Status,Progress\n";
+            employees.forEach(e => {
+                let prog = calculateProgress(e);
+                csvContent += `"${e.id}","${formatDate(e.date) || ''}","${formatDate(e.endDate) || ''}","${e.name}","${e.dept}","${e.pos}","${getStatusLabel(e.status)}","${prog.percent}%"\n`;
+            });
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'checklist_report.csv';
+            a.click();
+            showToast("ส่งออกไฟล์ CSV สำเร็จ", "success");
+        }
+    </script>
+</body>
+</html>
